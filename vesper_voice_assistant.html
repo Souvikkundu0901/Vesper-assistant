@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VESPER — voice task assistant</title>
+<style>
+  :root {
+    --bg: #0a0e14;
+    --bg2: #131c26;
+    --chrome: #8fa3b0;
+    --chrome-dark: #3d4a56;
+    --organic: #182028;
+    --cyan: #5ce1e6;
+    --red: #ff5c5c;
+    --text: #dce6ea;
+    --muted: #6f8493;
+    --border: #21303a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .app {
+    width: 100%;
+    max-width: 560px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+  }
+  header { text-align: center; margin-bottom: 20px; }
+  h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: 4px;
+    color: var(--cyan);
+  }
+  .sub {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+  .figure-wrap { display: flex; justify-content: center; margin-top: 4px; }
+  .visor-wrap { display: flex; justify-content: center; margin: 14px 0 22px; }
+  .visor {
+    width: 90px; height: 20px;
+    border-radius: 10px;
+    background: var(--cyan);
+    transition: background 0.3s, box-shadow 0.3s;
+    box-shadow: 0 0 14px rgba(92,225,230,0.35);
+  }
+  .visor.alert { background: var(--red); box-shadow: 0 0 14px rgba(255,92,92,0.4); }
+  .visor.listening { animation: pulse 1s infinite ease-in-out; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+  .status-line {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    min-height: 18px;
+    margin-bottom: 18px;
+  }
+  .controls { display: flex; gap: 10px; justify-content: center; margin-bottom: 22px; }
+  button {
+    background: var(--chrome-dark);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button.mic {
+    background: var(--organic);
+    border-color: var(--cyan);
+    color: var(--cyan);
+  }
+  button.mic.on { background: var(--red); border-color: var(--red); color: #1a0d0d; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button:hover:not(:disabled) { filter: brightness(1.15); }
+
+  .response-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-style: italic;
+    color: var(--cyan);
+    font-size: 14px;
+    min-height: 20px;
+    margin-bottom: 20px;
+  }
+
+  h2 {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 8px;
+  }
+  .task-list { list-style: none; margin: 0 0 20px; padding: 0; }
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .task-item.done { color: var(--muted); text-decoration: line-through; }
+  .task-item .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--cyan); flex-shrink: 0;
+  }
+  .task-item.done .dot { background: var(--chrome-dark); }
+  .empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+
+  .manual-add { display: flex; gap: 8px; margin-bottom: 6px; }
+  .manual-add input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+  .commands {
+    margin-top: 22px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .commands code {
+    color: var(--chrome);
+    background: var(--bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .unsupported {
+    font-size: 12px;
+    color: var(--red);
+    text-align: center;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>VESPER</h1>
+    <div class="sub">predictive enforcement routine</div>
+  </header>
+
+  <div class="figure-wrap">
+    <svg viewBox="0 0 220 300" width="150" height="205" role="img" aria-label="Vesper character illustration">
+      <ellipse cx="110" cy="286" rx="70" ry="10" fill="#000" opacity="0.35"/>
+      <rect x="90" y="200" width="20" height="80" rx="6" fill="#8fa3b0"/>
+      <rect x="114" y="200" width="18" height="80" rx="6" fill="#182028"/>
+      <circle cx="123" cy="220" r="2.2" fill="#5ce1e6"/>
+      <circle cx="123" cy="240" r="2.2" fill="#5ce1e6"/>
+      <circle cx="123" cy="260" r="2.2" fill="#5ce1e6"/>
+      <path d="M78 130 Q68 175 90 200 L124 200 Q136 175 122 130 Z" fill="#8fa3b0"/>
+      <path d="M104 130 Q98 175 108 200 L124 200 Q136 175 122 130 Z" fill="#182028"/>
+      <circle cx="97" cy="150" r="7" fill="#0a0e14" stroke="#5ce1e6" stroke-width="1"/>
+      <circle cx="97" cy="150" r="3" fill="#5ce1e6"/>
+      <line x1="78" y1="133" x2="58" y2="168" stroke="#8fa3b0" stroke-width="9" stroke-linecap="round"/>
+      <line x1="122" y1="133" x2="144" y2="168" stroke="#182028" stroke-width="9" stroke-linecap="round"/>
+      <path d="M132 148 Q142 158 145 172" stroke="#5ce1e6" stroke-width="1" fill="none" opacity="0.6"/>
+      <rect x="94" y="115" width="12" height="16" rx="3" fill="#3d4a56"/>
+      <path d="M80 78 Q77 100 85 116 Q93 124 101 116 Q107 100 104 78 Q96 68 90 68 Q83 68 80 78 Z" fill="#8fa3b0"/>
+      <path d="M94 68 Q101 68 104 78 Q107 100 101 116 Q97 120 94 120 Z" fill="#182028"/>
+      <rect x="82" y="90" width="20" height="4.5" rx="2.2" fill="#5ce1e6" id="svgVisor"/>
+      <path d="M84 66 L88 52 L92 66 Z" fill="#3d4a56"/>
+      <path d="M97 66 L102 48 L107 66 Z" fill="#5ce1e6"/>
+    </svg>
+  </div>
+
+  <div class="visor-wrap"><div class="visor" id="visor"></div></div>
+  <div class="status-line" id="statusLine">standing by</div>
+
+  <div class="controls">
+    <button class="mic" id="micBtn">start listening</button>
+    <button id="speakToggle">voice: on</button>
+  </div>
+
+  <div class="response-box" id="responseBox">"State your task."</div>
+
+  <h2>Pending</h2>
+  <ul class="task-list" id="pendingList"></ul>
+
+  <h2>Completed</h2>
+  <ul class="task-list" id="doneList"></ul>
+
+  <div class="manual-add">
+    <input type="text" id="manualInput" placeholder="type a task and press enter">
+  </div>
+
+  <div class="commands">
+    Voice commands — <code>add task [name]</code>, <code>complete [name]</code>,
+    <code>delete [name]</code>, <code>what are my tasks</code>,
+    <code>clear completed</code>
+  </div>
+  <div class="unsupported" id="unsupportedMsg" style="display:none;">
+    Speech recognition isn't supported in this browser. Try Chrome or Edge on desktop, or use the text box above.
+  </div>
+</div>
+
+<script>
+let tasks = [];
+let listening = false;
+let voiceOn = true;
+let recognition = null;
+
+const visor = document.getElementById('visor');
+const statusLine = document.getElementById('statusLine');
+const responseBox = document.getElementById('responseBox');
+const micBtn = document.getElementById('micBtn');
+const speakToggle = document.getElementById('speakToggle');
+const pendingList = document.getElementById('pendingList');
+const doneList = document.getElementById('doneList');
+const manualInput = document.getElementById('manualInput');
+const unsupportedMsg = document.getElementById('unsupportedMsg');
+
+function say(text) {
+  responseBox.textContent = '"' + text + '"';
+  if (voiceOn && 'speechSynthesis' in window) {
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.95;
+    u.pitch = 0.75;
+    const voices = speechSynthesis.getVoices();
+    const preferred = voices.find(v => /male|david|daniel|google uk english male/i.test(v.name));
+    if (preferred) u.voice = preferred;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  }
+}
+
+function flashAlert() {
+  visor.classList.add('alert');
+  const svgVisor = document.getElementById('svgVisor');
+  if (svgVisor) svgVisor.setAttribute('fill', '#ff5c5c');
+  setTimeout(() => {
+    visor.classList.remove('alert');
+    if (svgVisor) svgVisor.setAttribute('fill', '#5ce1e6');
+  }, 900);
+}
+
+function render() {
+  pendingList.innerHTML = '';
+  doneList.innerHTML = '';
+  const pending = tasks.filter(t => !t.done);
+  const done = tasks.filter(t => t.done);
+
+  if (pending.length === 0) {
+    pendingList.innerHTML = '<li class="empty">nothing pending</li>';
+  } else {
+    pending.forEach(t => {
+      const li = document.createElement('li');
+      li.className = 'task-item';
+      li.innerHTML = '<span class="dot"></span><span>' + escapeHtml(t.name) + '</span>';
+      pendingList.appendChild(li);
+    });
+  }
+
+  if (done.length === 0) {
+    doneList.innerHTML = '<li class="empty">nothing completed yet</li>';
+  } else {
+    done.forEach(t => {
+      const li = document.createElement('li');
+      li.className = 'task-item done';
+      li.innerHTML = '<span class="dot"></span><span>' + escapeHtml(t.name) + '</span>';
+      doneList.appendChild(li);
+    });
+  }
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function findTask(name) {
+  name = name.trim().toLowerCase();
+  return tasks.find(t => t.name.toLowerCase() === name) ||
+         tasks.find(t => t.name.toLowerCase().includes(name) || name.includes(t.name.toLowerCase()));
+}
+
+function addTask(name) {
+  name = name.trim();
+  if (!name) { say('No task name given.'); return; }
+  tasks.push({ name, done: false });
+  render();
+  say('Logged. "' + name + '." I will remind you exactly once.');
+}
+
+function completeTask(name) {
+  const t = findTask(name);
+  if (!t) { say('No matching task found for "' + name + '."'); return; }
+  if (t.done) { say('Already marked complete.'); return; }
+  t.done = true;
+  render();
+  say('Acceptable. Proceed to the next.');
+}
+
+function deleteTask(name) {
+  const t = findTask(name);
+  if (!t) { say('No matching task found for "' + name + '."'); return; }
+  tasks = tasks.filter(x => x !== t);
+  render();
+  say('Removed. Consider whether that was avoidance.');
+}
+
+function statusReport() {
+  const pending = tasks.filter(t => !t.done).length;
+  const done = tasks.filter(t => t.done).length;
+  if (pending === 0 && done === 0) {
+    say('No tasks logged. I am waiting.');
+    return;
+  }
+  if (pending === 0) {
+    say('Empty queue. Do not become comfortable.');
+    return;
+  }
+  flashAlert();
+  say(pending + ' pending, ' + done + ' completed. The numbers speak for themselves.');
+}
+
+function clearCompleted() {
+  const before = tasks.length;
+  tasks = tasks.filter(t => !t.done);
+  render();
+  if (tasks.length === before) {
+    say('Nothing to clear.');
+  } else {
+    say('Completed items cleared.');
+  }
+}
+
+function handleCommand(raw) {
+  const text = raw.trim().toLowerCase();
+  if (!text) return;
+
+  let m;
+  if ((m = text.match(/^(?:add|new|create)\s+task\s+(.+)/)) ||
+      (m = text.match(/^(?:add|remind me to)\s+(.+)/))) {
+    addTask(m[1]);
+    return;
+  }
+  if ((m = text.match(/^(?:complete|finish|done with|mark)\s+(.+?)(\s+as\s+done)?$/))) {
+    completeTask(m[1]);
+    return;
+  }
+  if ((m = text.match(/^(?:delete|remove|cancel)\s+(.+)/))) {
+    deleteTask(m[1]);
+    return;
+  }
+  if (/what are my tasks|status|report|how am i doing/.test(text)) {
+    statusReport();
+    return;
+  }
+  if (/clear completed|clear done/.test(text)) {
+    clearCompleted();
+    return;
+  }
+  // fallback: treat as a task add
+  addTask(raw);
+}
+
+manualInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && manualInput.value.trim()) {
+    handleCommand(manualInput.value);
+    manualInput.value = '';
+  }
+});
+
+speakToggle.addEventListener('click', () => {
+  voiceOn = !voiceOn;
+  speakToggle.textContent = 'voice: ' + (voiceOn ? 'on' : 'off');
+  if (!voiceOn && 'speechSynthesis' in window) speechSynthesis.cancel();
+});
+
+const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if (SpeechRecognitionImpl) {
+  recognition = new SpeechRecognitionImpl();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = 'en-US';
+
+  recognition.onstart = () => {
+    listening = true;
+    micBtn.textContent = 'listening...';
+    micBtn.classList.add('on');
+    visor.classList.add('listening');
+    statusLine.textContent = 'listening';
+  };
+
+  recognition.onend = () => {
+    listening = false;
+    micBtn.textContent = 'start listening';
+    micBtn.classList.remove('on');
+    visor.classList.remove('listening');
+    statusLine.textContent = 'standing by';
+  };
+
+  recognition.onerror = (e) => {
+    statusLine.textContent = 'error: ' + e.error;
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    statusLine.textContent = 'heard: "' + transcript + '"';
+    handleCommand(transcript);
+  };
+
+  micBtn.addEventListener('click', () => {
+    if (listening) {
+      recognition.stop();
+    } else {
+      recognition.start();
+    }
+  });
+} else {
+  micBtn.disabled = true;
+  unsupportedMsg.style.display = 'block';
+}
+
+render();
+</script>
+</body>
+</html>
